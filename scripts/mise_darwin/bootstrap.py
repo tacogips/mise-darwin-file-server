@@ -42,7 +42,7 @@ def _trust_brew_taps(profile: str) -> None:
     run(["brew", "trust", "--tap", *taps])
 
 
-def _install_riela_packages(home: Path) -> None:
+def install_riela_packages(home: Path) -> None:
     if not command_exists("riela"):
         print("warning: riela is not installed; skipping user package installation")
         return
@@ -58,6 +58,8 @@ def _install_riela_packages(home: Path) -> None:
         checkout.parent.mkdir(parents=True, exist_ok=True)
         run(["git", "clone", "https://github.com/tacogips/riela-packages.git", checkout])
 
+    run(["riela", "package", "registry", "sync", "default", "--output", "json"], quiet=True)
+
     manifest = REPO_ROOT / "agent-user-scope/riela-packages.txt"
     for package_id in manifest_lines(manifest):
         source = packages / package_id
@@ -69,8 +71,6 @@ def _install_riela_packages(home: Path) -> None:
                 "riela",
                 "package",
                 "install",
-                package_id,
-                "--source",
                 source,
                 "--scope",
                 "user",
@@ -261,7 +261,7 @@ def apply(profile: str) -> None:
     _trust_brew_taps(profile)
     _converge_brewfiles(profile)
     agents.install(profile=profile, home=home)
-    _install_riela_packages(home)
+    install_riela_packages(home)
     agents.converge_codex_skill_visibility(home)
     _install_herdr_integrations()
     converge_bat_theme_cache(home)

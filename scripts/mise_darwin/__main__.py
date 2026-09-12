@@ -6,6 +6,9 @@ import argparse
 
 from . import (
     bootstrap,
+    file_server,
+    file_server_storage,
+    ghostty,
     nix_uninstall,
     temporary_packages,
     upgrade_taco,
@@ -49,6 +52,7 @@ def parser() -> argparse.ArgumentParser:
     subcommands = command_parser.add_subparsers(dest="command", required=True)
     subcommands.add_parser("bootstrap", help="run idempotent post-tool configuration")
     subcommands.add_parser("verify", help="verify the development desktop")
+    subcommands.add_parser("ghostty-reload", help="reload the managed Ghostty configuration")
     subcommands.add_parser(
         "upgrade-tacogips",
         help="upgrade installed tacogips Homebrew formulae and casks",
@@ -81,6 +85,15 @@ def parser() -> argparse.ArgumentParser:
     temporary.add_argument("--dry-run", action="store_true")
     temporary.add_argument("--install-only", action="store_true")
     temporary.add_argument("arguments", nargs=argparse.REMAINDER)
+    server = subcommands.add_parser("file-server", help="manage the home file server")
+    server.add_argument(
+        "operation", choices=("status", "enroll", "init-repository", "backup", "reconcile", "share", "time-machine-share", "enable-smb", "power")
+    )
+    storage = subcommands.add_parser("file-server-storage", help="inspect storage targets")
+    storage.add_argument("operation", choices=("disks", "plan", "record-roles"))
+    storage.add_argument("--dock1")
+    storage.add_argument("--dock2")
+    storage.add_argument("--backup")
     return command_parser
 
 
@@ -90,8 +103,48 @@ def main() -> int:
     if arguments.command == "bootstrap":
         bootstrap.apply(profile)
         return 0
+    if arguments.command == "file-server":
+        from pathlib import Path
+
+        home = Path.home()
+        if arguments.operation == "status":
+            return 0 if file_server.status(home) else 1
+        if arguments.operation == "enroll":
+            file_server.enroll(home)
+        elif arguments.operation == "init-repository":
+            file_server.init_repository(home)
+        elif arguments.operation == "backup":
+            file_server.backup(home)
+        elif arguments.operation == "reconcile":
+            file_server.reconcile(home)
+        elif arguments.operation == "share":
+            file_server.share(home)
+        elif arguments.operation == "time-machine-share":
+            file_server.time_machine_share(home)
+        elif arguments.operation == "enable-smb":
+            file_server.enable_smb()
+        elif arguments.operation == "power":
+            file_server.power()
+        return 0
+    if arguments.command == "file-server-storage":
+        if arguments.operation == "disks":
+            file_server_storage.print_inventory(file_server_storage.inventory())
+            return 0
+        if not arguments.dock1 or not arguments.dock2 or not arguments.backup:
+            command_parser = parser()
+            command_parser.error("storage operation requires --dock1, --dock2, and --backup")
+        if arguments.operation == "record-roles":
+            from pathlib import Path
+
+            file_server_storage.record_roles(arguments.dock1, arguments.dock2, arguments.backup, Path.home())
+        else:
+            file_server_storage.plan(arguments.dock1, arguments.dock2, arguments.backup)
+        return 0
     if arguments.command == "verify":
         return 0 if verify.verify(profile) else 1
+    if arguments.command == "ghostty-reload":
+        ghostty.reload_config()
+        return 0
     if arguments.command == "upgrade-tacogips":
         upgrade_taco.upgrade()
         return 0

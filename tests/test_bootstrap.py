@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import plistlib
 import tempfile
 import unittest
@@ -15,11 +16,65 @@ from scripts.mise_darwin.bootstrap import (
     converge_bat_theme_cache,
     converge_aerospace_sync,
     converge_docker_config,
+    install_riela_packages,
     retire_legacy_codex_riela_skill,
 )
 
 
 class BootstrapTests(unittest.TestCase):
+    @patch("scripts.mise_darwin.bootstrap.run")
+    @patch("scripts.mise_darwin.bootstrap.command_exists", return_value=True)
+    @patch("scripts.mise_darwin.bootstrap.converge_riela_cli_quarantine")
+    def test_riela_installs_from_local_path_after_registry_sync(
+        self, _quarantine: Mock, _command_exists: Mock, run: Mock
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home = root / "home"
+            checkout = root / "checkout"
+            source = checkout / "packages/example"
+            source.mkdir(parents=True)
+            manifest = root / "agent-user-scope/riela-packages.txt"
+            manifest.parent.mkdir()
+            manifest.write_text("example\n", encoding="utf-8")
+            for relative in (
+                ".codex/skills/codex-design-and-implement-review-loop/SKILL.md",
+                ".claude/skills/fable-and-improve-codex/SKILL.md",
+                ".claude/skills/fable-and-improve-opus/SKILL.md",
+            ):
+                path = home / relative
+                path.parent.mkdir(parents=True)
+                path.touch()
+
+            with patch("scripts.mise_darwin.bootstrap.REPO_ROOT", root), patch.dict(
+                os.environ, {"RIELA_PACKAGES_CHECKOUT": str(checkout)}
+            ):
+                install_riela_packages(home)
+
+            self.assertEqual(
+                run.call_args_list,
+                [
+                    call(
+                        ["riela", "package", "registry", "sync", "default", "--output", "json"],
+                        quiet=True,
+                    ),
+                    call(
+                        [
+                            "riela",
+                            "package",
+                            "install",
+                            source,
+                            "--scope",
+                            "user",
+                            "--overwrite",
+                            "--output",
+                            "json",
+                        ],
+                        quiet=True,
+                    ),
+                ],
+            )
+
     @patch("scripts.mise_darwin.bootstrap.run")
     def test_riela_cli_quarantine_is_removed_only_when_present(self, run: Mock) -> None:
         with tempfile.TemporaryDirectory() as temporary:

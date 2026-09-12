@@ -8,20 +8,24 @@ It does not depend on the Nix Store or nix-darwin generations.
 ## New machine setup
 
 On a new Apple Silicon Mac, install Homebrew if it is not already available,
-then install mise, check out this repository under the standard workspace path,
+then install mise, check out this repository,
 and run the desktop bootstrap:
 
 ```sh
 brew install mise
 mkdir -p ~/gits/tacogips
-git clone https://github.com/tacogips/mise-darwin.git ~/gits/tacogips/mise-darwin
-cd ~/gits/tacogips/mise-darwin
+git clone https://github.com/tacogips/mise-darwin-file-server.git ~/gits/tacogips/mise-darwin-file-server
+cd ~/gits/tacogips/mise-darwin-file-server
 mise trust
 ./bootstrap
 ```
 
 The bootstrap configures this Mac as the development desktop. Sign in to the
 Mac App Store first if App Store applications should be installed.
+Dotfile sources resolve from the checkout, so the repository can live at another path.
+Bootstrap reloads a running Ghostty after applying its managed config. If
+Ghostty was already open when the dotfile link changed, run
+`mise run ghostty:reload` to refresh new terminal windows without closing the app.
 
 ## Repository layout
 
@@ -85,7 +89,8 @@ mupgrade-taco
 
 The same non-interactive operation is available directly as a mise task.
 `upgrade-all` (and the `mupgrade-all` alias) is kept as an alias of the same
-task:
+task. The Fish shortcuts use the checkout path shown above; from another
+checkout, run the mise task in that directory:
 
 ```sh
 mise run upgrade-taco
@@ -204,8 +209,8 @@ to the App Store first if Mac App Store applications should be installed.
 
 ```sh
 mkdir -p ~/gits/tacogips
-git clone https://github.com/tacogips/mise-darwin.git ~/gits/tacogips/mise-darwin
-cd ~/gits/tacogips/mise-darwin
+git clone https://github.com/tacogips/mise-darwin-file-server.git ~/gits/tacogips/mise-darwin-file-server
+cd ~/gits/tacogips/mise-darwin-file-server
 mise trust
 ./bootstrap
 ```
@@ -214,7 +219,7 @@ When bootstrap finishes, open a new Terminal window so the Homebrew Fish login
 shell is active, then verify the complete configuration.
 
 ```sh
-cd ~/gits/tacogips/mise-darwin
+cd ~/gits/tacogips/mise-darwin-file-server
 mise -E macos-arm64 -E desktop run verify
 ```
 
@@ -224,8 +229,8 @@ If Homebrew and mise are already installed, run:
 
 ```sh
 mkdir -p ~/gits/tacogips
-git clone https://github.com/tacogips/mise-darwin.git ~/gits/tacogips/mise-darwin
-cd ~/gits/tacogips/mise-darwin
+git clone https://github.com/tacogips/mise-darwin-file-server.git ~/gits/tacogips/mise-darwin-file-server
+cd ~/gits/tacogips/mise-darwin-file-server
 mise trust
 ./bootstrap
 ```
@@ -284,6 +289,8 @@ MCP configuration, and Cursor skill.
 Bootstrap synchronizes only known assets and does not remove skills managed by
 Riela or other installers. The old `envrc-generate` skill is intentionally
 excluded because this setup does not use direnv.
+Managed files replace legacy symlinks atomically, without writing into their
+former Nix Store targets.
 
 Codex keeps only `user-skill-router` implicitly visible. Detailed user skills
 remain explicitly invocable and are loaded lazily through the router, avoiding
@@ -294,7 +301,9 @@ path model instead of maintaining repeated absolute paths.
 On desktop hosts, bootstrap installs the Riela application and all user-scope
 workflow and skill packages listed in `agent-user-scope/riela-packages.txt`. If
 the public `tacogips/riela-packages` checkout is absent, the installer clones it
-under the standard checkout root. The Fable-led `fable-and-improve-codex` skill
+under the standard checkout root. Bootstrap synchronizes Riela's default package
+registry before installing packages from their local source paths. The Fable-led
+`fable-and-improve-codex` skill
 is installed for Claude Code only. Codex uses
 `codex-design-and-implement-review-loop`, with GPT-6 Astra handling design,
 design review, implementation-plan creation, and implementation-plan review;
@@ -346,6 +355,10 @@ Verify the migrated setup from a new shell:
 mise -E macos-arm64 -E desktop run verify
 ```
 
+The verification task runs `mise doctor` with the Homebrew `mise` launcher
+first on PATH. This matches the installed shim symlink targets even though
+`mise run` otherwise places a second path to the same executable first.
+
 Only remove Nix after verification succeeds. Preview the destructive operation
 first:
 
@@ -368,6 +381,187 @@ links before making changes. Modified system files are backed up under
 
 Nix removal is irreversible. Keep the former configuration repository only as
 a migration reference until this repository passes verification.
+
+## Home file server on the Mac mini
+
+Load `mise.file-server.toml` in addition to the Apple Silicon and desktop
+configuration on the Mac mini:
+
+```sh
+mise -E macos-arm64 -E desktop -E file-server config ls
+```
+
+This overlay declares Kopia and smartmontools, a daily 03:00 backup LaunchAgent,
+a five-minute recovery check LaunchAgent, an AC-power sleep-prevention
+LaunchAgent, and guarded setup/status tasks. The agents use the documented clone path
+`~/gits/tacogips/mise-darwin-file-server`; clone there before applying it.
+Tailscale remains the Mac App Store package in the desktop profile. Sign in to
+Tailscale on the server and clients; do not expose SMB on the public Internet.
+Run `mise -E macos-arm64 -E desktop -E file-server run file-server:power` to
+keep the server awake on AC power, enable wake on network access, and restart
+after a power outage. This task asks for `sudo` only if a setting has drifted.
+The `caffeinate -is` agent also prevents idle sleep while the user session is
+running, without keeping the display awake.
+
+Connect both intended RAID disks and the separate backup disk. Before erasing
+anything, list the current whole disks and their partitions:
+
+```sh
+mise -E macos-arm64 -E desktop -E file-server run file-server:disks
+mise -E macos-arm64 -E desktop -E file-server run file-server:storage-plan -- \
+  --dock1 diskN --dock2 diskM --backup diskP
+```
+
+Replace the placeholders only after mapping the physical bays to the live
+identifiers. The plan verifies three distinct, writable, external whole disks,
+shows their existing partitions, and prints the exact commands without running
+them. Disk numbers can change after reconnection, so rerun the plan immediately
+before any erase. Also inspect `diskutil info diskN` and any available enclosure
+serial or bay labels. Confirm
+that existing data is backed up. The two Dock disks become an [AppleRAID mirror](https://support.apple.com/guide/disk-utility/create-a-disk-set-dskua23150fd/mac)
+named `FileServer`, formatted APFS; the third disk is a separate GUID/APFS volume
+named `FileServerBackup`. Creating the mirror and formatting the backup disk
+**erase their existing contents**. Use Disk Utility's RAID Assistant or the
+corresponding `diskutil AppleRAID create mirror` and `diskutil eraseDisk`
+commands only after confirming the exact live disk identifiers. Do not use
+internal disks. Keep the backup disk in a separate enclosure if possible: a
+third disk in the same multi-bay USB bridge still shares its power supply and
+controller with the RAID members. Some
+USB bridges do not expose per-drive SMART data to smartmontools; if so, use
+mount, RAID, backup, and enclosure health checks rather than treating a missing
+SMART result as proof that the HDD is healthy.
+
+After the volumes appear at `/Volumes/FileServer` and
+`/Volumes/FileServerBackup`, run:
+
+```sh
+mise -E macos-arm64 -E desktop -E file-server run file-server:enroll
+mise -E macos-arm64 -E desktop -E file-server run file-server:share
+mise -E macos-arm64 -E desktop -E file-server run file-server:enable-smb
+mise -E macos-arm64 -E desktop -E file-server run file-server:init-repository
+mise -E macos-arm64 -E desktop -E file-server run file-server:backup
+mise -E macos-arm64 -E desktop -E file-server run file-server:status
+mise -E macos-arm64 -E desktop -E file-server run file-server:reconcile
+mise -E macos-arm64 -E desktop -E file-server bootstrap macos launchd-agents apply --yes
+```
+
+Enrollment records the exact two volume UUIDs in
+`~/.config/mise-darwin/file-server.json` (a machine-local file, never commit it).
+After the mirror and backup volume exist, record the physical roles separately:
+
+```sh
+mise -E macos-arm64 -E desktop -E file-server run file-server:record-disks -- \
+  --dock1 diskN --dock2 diskM --backup diskP
+```
+
+This verifies that the two selected disks are the online AppleRAID members and
+the third backs `FileServerBackup`, then writes an owner-only inventory at
+`.mise/file-server-disks.json`. It records media labels, sizes, RAID member
+UUIDs, and volume UUIDs, but not transient `diskN` numbers. The `.mise/`
+directory is gitignored because these identifiers belong to this machine.
+Repeating the task is safe when roles match; it refuses to overwrite a changed
+layout. Review this inventory and the live `file-server:disks` output before
+adding or replacing a disk. The recorded roles are not erase targets.
+
+The backup job refuses to run if either disk is absent, the mount names are
+wrong, or Kopia points at a different repository. The status task checks that
+both AppleRAID members are online and requires an error-free snapshot of the
+intended share from the last 36 hours. The SMB share is named
+`FileServer`, points to `/Volumes/FileServer/Shared`, and disables guest access.
+The `file-server:enable-smb` task enables and starts macOS's built-in SMB
+LaunchDaemon if port 445 is closed; it asks for `sudo` only when needed.
+Alternatively, enable **File Sharing** in System Settings → General → Sharing
+and **Share files and folders using SMB** in its Options. The
+status task checks that the SMB service is listening on port 445. Grant access
+only to the intended local or sharing-only users. The share
+task does not create user accounts or change their passwords.
+For iPhone access, connect Tailscale on the phone, then in the Files app choose
+**Browse → More → Connect to Server** and enter
+`smb://<tailscale-host>/FileServer` (or use `<tailscale-ip>` as the host).
+Select **Registered User** and
+enter an allowed server account. See [Apple's Files instructions](https://support.apple.com/guide/iphone/iphe9aff429a/ios)
+and [Tailscale's file-share guide](https://tailscale.com/docs/use-cases/personal-or-at-home-use/access-nas-media-file-servers).
+Keep the actual tailnet name and IP address out of this repository and mise
+configuration.
+
+Repository initialization generates a strong encryption password, saves it in the user's
+Keychain for interactive use, and writes a mode-600 recovery copy to
+`~/.config/mise-darwin/file-server-recovery-password.txt`. Copy that password
+to a password manager or another safe place off this Mac; it is essential for
+recovery on another Mac. Never commit the recovery file. The scheduled agent
+reads that owner-only file to avoid a Keychain prompt. It runs in the user's logged-in
+GUI session, so after a FileVault-protected reboot, unlock the Mac before
+expecting scheduled backups or Tailscale access.
+
+macOS may separately require removable-volume access for the backup LaunchAgent.
+After loading it, trigger and inspect one background run:
+
+```sh
+launchctl kickstart -k gui/$(id -u)/dev.mise.file-server-backup
+launchctl print gui/$(id -u)/dev.mise.file-server-backup
+```
+
+Approve any local external-storage access dialog and confirm the job's last exit
+code is 0. If macOS denies access, review [external-storage app access](https://support.apple.com/guide/mac-help/allow-use-of-external-and-removable-storage-mchl6f613f75/mac)
+under System Settings → General → Storage and retry. A foreground backup does not prove that launchd
+has access to the external volume.
+
+The recovery check runs at login and every five minutes. Once the enrolled RAID
+and backup volumes are mounted, it creates a Kopia snapshot if the latest one
+is missing, failed, or at least 24 hours old. It separately checks the private
+`FileServer` and `TimeMachine` share records, the Time Machine destination
+option, SMB listener, and RAID members,
+so an SMB fault does not prevent a due backup. The daily 03:00 job
+remains as an independent scheduled backup. Both jobs share a lock, so they do
+not write to the repository concurrently. A missing or replaced volume causes
+an explicit error and **never** creates a backup under an empty mount point.
+macOS retains the enabled SMB service and share records across restarts; the
+check reports any drift that needs administrator repair. After a cold reboot,
+FileVault must be unlocked and this user must log in before the recovery agent
+can start. A detached or powered-off HDD must reconnect and mount before
+the next check can use it. Inspect the agent with:
+
+```sh
+launchctl print gui/$(id -u)/dev.mise.file-server-reconcile
+tail -n 30 ~/Library/Logs/mise-file-server-reconcile.err.log
+```
+
+To recover, connect the backup disk to a Mac with Kopia, [connect to the existing
+repository](https://kopia.io/docs/reference/command-line/) at `/Volumes/FileServerBackup/Kopia` with the saved password, then
+use `kopia snapshot list` and [restore](https://kopia.io/docs/reference/command-line/common/snapshot-restore/) with
+`kopia snapshot restore <snapshot-id> <new-target>`.
+Restore to a new empty directory first and inspect the files before replacing
+live data. Recreate the AppleRAID mirror separately if it was lost; Kopia
+restores files and history, not the RAID layout. Test a sample-file restore
+after the first backup and periodically thereafter. RAID protects availability
+against one disk failure; the separate versioned backup protects against
+deletion and overwrite. Important data still needs an off-site copy.
+
+### Time Machine destination for other Macs
+
+Keep Time Machine images separate from ordinary SMB files. On the server, run
+`mise -E macos-arm64 -E desktop -E file-server run file-server:time-machine-share`
+to create `/Volumes/FileServer/TimeMachine` on the enrolled RAID mirror and
+register a private SMB share named `TimeMachine`. The ordinary files remain in
+`/Volumes/FileServer/Shared` (`smb://<server>/FileServer`). Repeating the task
+preserves existing backup images and the share record.
+
+In System Settings → General → Sharing, turn on File Sharing and SMB. Click the
+info button next to File Sharing; if its **Options** sheet is open, click
+**Done** to return to the Shared Folders list. Control-click (or right-click)
+the `TimeMachine` row in that list and choose **Advanced Options** from its
+context menu. Turn on
+**Share as a Time Machine backup destination**. Set **Limit backups to** to
+**2,000 GB (2 TB) on the shared destination for the two client Macs**, rather than
+configuring 2 TB separately on each client. [Apple's Time Machine sharing
+instructions](https://support.apple.com/guide/mac-help/back-up-to-a-shared-folder-with-time-machine-mchl31533145/mac)
+describe these controls. On each client Mac, select the `TimeMachine` network
+destination in Time Machine settings and enable backup encryption. Multiple
+Macs can use the same destination; each creates its own backup image. The
+server's Kopia job backs up only `Shared`, not the live Time Machine images.
+Verify that both clients can select the network destination and complete their
+first encrypted backup; an ordinary SMB share record alone does not prove the
+Time Machine destination option is enabled.
 
 ## Current boundaries
 

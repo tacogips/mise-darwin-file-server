@@ -78,27 +78,27 @@ run = "./scripts/pre-packages.sh"
 run = "killall Dock Finder 2>/dev/null || true"
 
 [dotfiles]
-"~/.config/fish/config.fish" = { mode = "symlink" }
-"~/.config/fish/conf.d/mise-aliases.fish" = { mode = "symlink" }
-"~/.config/fish/conf.d/shared-aliases.fish" = { mode = "symlink" }
-"~/.config/fish/completions/mise.fish" = { mode = "symlink" }
-"~/.config/fish/functions" = { mode = "symlink" }
-"~/.config/bat/themes/Sora.tmTheme" = { mode = "symlink" }
-"~/.config/ghostty" = { mode = "symlink" }
-"~/.config/herdr/config.toml" = { mode = "symlink" }
-"~/.config/aerospace/aerospace.toml" = { mode = "symlink" }
-"~/.config/karabiner/karabiner.json" = { mode = "symlink" }
-"~/.config/nvim" = { mode = "symlink" }
-"~/.config/lazygit/config.yml" = { mode = "symlink" }
-"~/.config/lazydocker/config.yml" = { mode = "symlink" }
-"~/.config/jj/config.toml" = { mode = "symlink" }
-"~/.config/yazi" = { mode = "symlink" }
-"~/.gitconfig" = { mode = "symlink" }
-"~/.agents/skills/apple-gateway" = { mode = "symlink" }
-"~/.agents/skills/apple-calendar" = { mode = "symlink" }
-"~/.agents/skills/apple-clock-alarms" = { mode = "symlink" }
-"~/.agents/skills/apple-mail" = { mode = "symlink" }
-"~/.agents/skills/apple-notes" = { mode = "symlink" }
-"~/.agents/skills/apple-notifications" = { mode = "symlink" }
-"~/.agents/skills/apple-reminders" = { mode = "symlink" }
-"~/.agents/skills/apple-schedule" = { mode = "symlink" }
+"~/.config/fish/config.fish" = { source = "dotfiles/.config/fish/config.fish", mode = "symlink" }
+"~/.config/fish/conf.d/mise-aliases.fish" = { source = "dotfiles/.config/fish/conf.d/mise-aliases.fish", mode = "symlink" }
+"~/.config/fish/conf.d/shared-aliases.fish" = { source = "dotfiles/.config/fish/conf.d/shared-aliases.fish", mode = "symlink" }
+"~/.config/fish/completions/mise.fish" = { source = "dotfiles/.config/fish/completions/mise.fish", mode = "symlink" }
+"~/.config/fish/functions" = { source = "dotfiles/.config/fish/functions", mode = "symlink" }
+"~/.config/bat/themes/Sora.tmTheme" = { source = "dotfiles/.config/bat/themes/Sora.tmTheme", mode = "symlink" }
+"~/.config/ghostty" = { source = "dotfiles/.config/ghostty", mode = "symlink" }
+"~/.config/herdr/config.toml" = { source = "dotfiles/.config/herdr/config.toml", mode = "symlink" }
+"~/.config/aerospace/aerospace.toml" = { source = "dotfiles/.config/aerospace/aerospace.toml", mode = "symlink" }
+"~/.config/karabiner/karabiner.json" = { source = "dotfiles/.config/karabiner/karabiner.json", mode = "symlink" }
+"~/.config/nvim" = { source = "dotfiles/.config/nvim", mode = "symlink" }
+"~/.config/lazygit/config.yml" = { source = "dotfiles/.config/lazygit/config.yml", mode = "symlink" }
+"~/.config/lazydocker/config.yml" = { source = "dotfiles/.config/lazydocker/config.yml", mode = "symlink" }
+"~/.config/jj/config.toml" = { source = "dotfiles/.config/jj/config.toml", mode = "symlink" }
+"~/.config/yazi" = { source = "dotfiles/.config/yazi", mode = "symlink" }
+"~/.gitconfig" = { source = "dotfiles/.gitconfig", mode = "symlink" }
+"~/.agents/skills/apple-gateway" = { source = "dotfiles/.agents/skills/apple-gateway", mode = "symlink" }
+"~/.agents/skills/apple-calendar" = { source = "dotfiles/.agents/skills/apple-calendar", mode = "symlink" }
+"~/.agents/skills/apple-clock-alarms" = { source = "dotfiles/.agents/skills/apple-clock-alarms", mode = "symlink" }
+"~/.agents/skills/apple-mail" = { source = "dotfiles/.agents/skills/apple-mail", mode = "symlink" }
+"~/.agents/skills/apple-notes" = { source = "dotfiles/.agents/skills/apple-notes", mode = "symlink" }
+"~/.agents/skills/apple-notifications" = { source = "dotfiles/.agents/skills/apple-notifications", mode = "symlink" }
+"~/.agents/skills/apple-reminders" = { source = "dotfiles/.agents/skills/apple-reminders", mode = "symlink" }
+"~/.agents/skills/apple-schedule" = { source = "dotfiles/.agents/skills/apple-schedule", mode = "symlink" }

@@ -3,7 +3,6 @@ min_version = "2026.8.3"
 [settings]
 experimental = true
 lockfile = true
-dotfiles.root = "~/gits/tacogips/mise-darwin/dotfiles"
 
 [env]
 EDITOR = "nvim"
@@ -34,7 +33,6 @@ node = "24"
 bun = "latest"
 zig = "latest"
 java = "temurin-21"
-julia = "latest"
 gitleaks = "latest"
 pre-commit = "latest"
 

@@ -31,6 +31,19 @@ def command_check(*arguments: str) -> Check:
     return check
 
 
+def mise_doctor_check(mise_bin: Path = Path("/opt/homebrew/bin/mise")) -> Check:
+    """Run doctor with the same mise path used by Homebrew-created shims."""
+    def check() -> CheckResult:
+        environment = os.environ.copy()
+        if mise_bin.is_file():
+            environment["PATH"] = f"{mise_bin.parent}{os.pathsep}{environment.get('PATH', '')}"
+        result = run(["mise", "doctor"], capture=True, check=False, env=environment)
+        detail = (result.stderr or result.stdout).strip().splitlines()
+        return CheckResult(result.returncode == 0, detail[-1] if detail else "")
+
+    return check
+
+
 def executable_check(name: str) -> Check:
     return lambda: CheckResult(shutil.which(name) is not None, f"{name} not found on PATH")
 
@@ -89,7 +102,7 @@ def _checks(profile: str, home: Path) -> list[tuple[str, Check]]:
     agent_paths = agents.AgentPaths(home)
     checks: list[tuple[str, Check]] = [
         ("mise config", command_check("mise", "config", "ls")),
-        ("mise doctor", command_check("mise", "doctor")),
+        ("mise doctor", mise_doctor_check()),
         ("fish", executable_check("fish")),
         ("neovim", executable_check("nvim")),
         ("git", executable_check("git")),

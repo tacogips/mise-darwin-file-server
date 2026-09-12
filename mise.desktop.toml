@@ -16,3 +16,10 @@
 "mas:302584613" = "latest"  # Amazon Kindle
 "mas:1475387142" = "latest" # Tailscale
 "mas:497799835" = "latest"  # Xcode
+
+[bootstrap.hooks.final]
+run = "mise run ghostty:reload"
+
+[tasks."ghostty:reload"]
+description = "Reload the managed Ghostty configuration in a running app"
+run = "python -m scripts.mise_darwin ghostty-reload"

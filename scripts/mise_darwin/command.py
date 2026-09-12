@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import filecmp
 import os
 import shutil
 import subprocess
@@ -22,17 +23,22 @@ def run(
     env: Mapping[str, str] | None = None,
     input_text: str | None = None,
     quiet: bool = False,
+    timeout: float | None = None,
 ) -> subprocess.CompletedProcess[str]:
     command = [os.fspath(argument) for argument in arguments]
-    result = subprocess.run(
-        command,
-        check=False,
-        env=env,
-        input=input_text,
-        stdout=subprocess.PIPE if capture or quiet else None,
-        stderr=subprocess.PIPE if capture or quiet else None,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            command,
+            check=False,
+            env=env,
+            input=input_text,
+            stdout=subprocess.PIPE if capture or quiet else None,
+            stderr=subprocess.PIPE if capture or quiet else None,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise CommandError(f"command timed out after {timeout}s: {' '.join(command)}") from error
     if check and result.returncode != 0:
         detail = (result.stderr or result.stdout or "").strip()
         suffix = f": {detail}" if detail else ""
@@ -55,7 +61,22 @@ def sync_file(source: Path, target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.is_dir() and not target.is_symlink():
         raise IsADirectoryError(target)
-    shutil.copy2(source, target, follow_symlinks=False)
+    if (
+        not target.is_symlink()
+        and target.is_file()
+        and filecmp.cmp(source, target, shallow=False)
+        and source.stat().st_mode & 0o777 == target.stat().st_mode & 0o777
+    ):
+        return
+
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{target.name}.", dir=target.parent)
+    temporary = Path(temporary_name)
+    os.close(descriptor)
+    try:
+        shutil.copy2(source, temporary)
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def sync_directory(source: Path, target: Path) -> None:
