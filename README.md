@@ -475,12 +475,34 @@ and **Share files and folders using SMB** in its Options. The
 status task checks that the SMB service is listening on port 445. Grant access
 only to the intended local or sharing-only users. The share
 task does not create user accounts or change their passwords.
-For iPhone access, connect Tailscale on the phone, then in the Files app choose
-**Browse → More → Connect to Server** and enter
-`smb://<tailscale-host>/FileServer` (or use `<tailscale-ip>` as the host).
-Select **Registered User** and
-enter an allowed server account. See [Apple's Files instructions](https://support.apple.com/guide/iphone/iphe9aff429a/ios)
-and [Tailscale's file-share guide](https://tailscale.com/docs/use-cases/personal-or-at-home-use/access-nas-media-file-servers).
+
+### Access shared files from an iPhone
+
+macOS Sharing shows the folder's row name, while SMB clients use its configured
+SMB share name. On this server they map as follows:
+
+| Sharing row | SMB share name | Folder on the RAID | SMB address |
+| --- | --- | --- | --- |
+| `Shared` | `FileServer` | `/Volumes/FileServer/Shared` | `smb://<server-host>/FileServer` |
+| `TimeMachine` | `TimeMachine` | `/Volumes/FileServer/TimeMachine` | `smb://<server-host>/TimeMachine` |
+
+The `TimeMachine` share is reserved for Mac backups.
+
+1. On the home network, connect the iPhone and Mac mini to the same LAN. For
+   access away from home, connect Tailscale on both devices and use the Mac
+   mini's Tailscale hostname or IP address.
+2. On the iPhone, open **Files → Browse → More (⋯) → Connect to Server**.
+3. Enter `smb://<server-host>/FileServer` and tap **Connect**. Use the Mac
+   mini's local hostname on the LAN, or its Tailscale hostname or IP when
+   using Tailscale. Do not enter the on-disk `Shared` path as the share name.
+4. Choose **Registered User**, enter the username and password of an account
+   allowed to use SMB on the Mac mini, and tap **Next**. Open the connected
+   `FileServer` share from the Files sidebar. Guest access is disabled.
+
+If the connection fails, check that the Mac mini has been unlocked after a
+FileVault reboot, File Sharing and SMB are enabled, and both devices can reach
+each other on the chosen network. See [Apple's Files instructions](https://support.apple.com/ja-jp/guide/iphone/iphe9aff429a/ios)
+and [Tailscale's SMB guide](https://tailscale.com/docs/use-cases/personal-or-at-home-use/access-nas-media-file-servers).
 Keep the actual tailnet name and IP address out of this repository and mise
 configuration.
 
@@ -554,14 +576,36 @@ context menu. Turn on
 **Share as a Time Machine backup destination**. Set **Limit backups to** to
 **2,000 GB (2 TB) on the shared destination for the two client Macs**, rather than
 configuring 2 TB separately on each client. [Apple's Time Machine sharing
-instructions](https://support.apple.com/guide/mac-help/back-up-to-a-shared-folder-with-time-machine-mchl31533145/mac)
-describe these controls. On each client Mac, select the `TimeMachine` network
-destination in Time Machine settings and enable backup encryption. Multiple
+instructions](https://support.apple.com/ja-jp/guide/mac-help/mchl31533145/mac)
+describe these controls. Multiple
 Macs can use the same destination; each creates its own backup image. The
 server's Kopia job backs up only `Shared`, not the live Time Machine images.
-Verify that both clients can select the network destination and complete their
-first encrypted backup; an ordinary SMB share record alone does not prove the
-Time Machine destination option is enabled.
+
+On **each** client Mac:
+
+1. Connect to the Mac mini on the same LAN, or connect both Macs to the same
+   tailnet if using Tailscale. The Mac mini must be awake, logged in after
+   any FileVault reboot, and have the RAID volume mounted.
+2. Open **System Settings → General → Time Machine → Add Backup Disk** (or the
+   **+** button if a destination is already configured). Select the
+   `TimeMachine` network destination, then click **Set Up Disk**.
+3. When asked to connect, use an SMB-enabled account on the Mac mini with
+   access to the `TimeMachine` share. Enable **Encrypt Backups** and save the
+   separate backup-encryption password somewhere safe. Complete setup and
+   confirm the first backup finishes before setting up the second Mac.
+
+If `TimeMachine` does not appear in the destination list, in Finder choose
+**Go → Connect to Server** (Command-K) and mount
+`smb://<server-host>/TimeMachine` with that account, then return to Time
+Machine settings. Use the Mac mini's local hostname on the LAN or its
+Tailscale hostname or IP over Tailscale. A direct SMB mount can make a network
+destination selectable when automatic discovery does not find it; see [Apple's
+supported-disk guidance](https://support.apple.com/ja-jp/guide/mac-help/mh15139/mac).
+If it still does not appear, check the server's **Share as a Time Machine backup
+destination** option and the client's SMB connection. [Apple's client setup
+instructions](https://support.apple.com/ja-jp/guide/mac-help/mh11421/mac)
+describe the Time Machine controls. An ordinary SMB share record alone does
+not prove the Time Machine destination option is enabled.
 
 ## Current boundaries
 
