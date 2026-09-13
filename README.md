@@ -508,6 +508,25 @@ Retry from a second Mac using `smb://<server-host>/FileServer` and **Registered
 User**. The `file-server:status` task checks the SMB share flags and listener,
 but not the account password, ownership setting, or per-user folder access.
 
+A confirmed cause of external-share connection failures is macOS privacy
+protection (TCC) denying `smbd` access to removable volumes in a background
+session. The File Sharing panel's **Full Disk Access** switch alone did not
+provide the required permission. In System Settings → Privacy & Security →
+Full Disk Access, add the built-in `/usr/sbin/smbd` executable and enable it.
+The file picker accepts its path through Command-Shift-G. Then restart SMB
+with `sudo launchctl kickstart -k system/com.apple.smbd`; this disconnects
+existing SMB sessions. Keep guest access disabled and retain the folder ACLs.
+
+Use `/usr/bin/log show --last 10m --style compact --predicate 'process == "tccd" AND eventMessage CONTAINS[c] "smbd"'`
+to check for `Refusing TCCAccessRequest` and
+`kTCCServiceSystemPolicyRemovableVolumes`. Use the absolute command path:
+some shells have a different `log` builtin. A successful `ls -ld` only proves
+metadata access, and a failed `sudo -u` write probe can have a different TCC
+identity from the SMB service. After granting the permission, verify an actual
+authenticated client mount and create/edit/delete a disposable test file over
+SMB. Also verify the ordinary sharing account cannot open `TimeMachine`.
+Do not treat the server status task alone as proof of client access.
+
 ### Access shared files from an iPhone
 
 macOS Sharing shows the folder's row name, while SMB clients use its configured
