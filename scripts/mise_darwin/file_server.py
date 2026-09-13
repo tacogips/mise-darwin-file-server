@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Generator, cast
 
 from .command import atomic_write, run
+from .file_server_access import require_smb_storage_access
 
 SOURCE_MOUNT = Path("/Volumes/FileServer")
 BACKUP_MOUNT = Path("/Volumes/FileServerBackup")
@@ -379,7 +380,8 @@ def reconcile(home: Path) -> None:
         require_time_machine_destination(entries)
         if not smb_service_listening():
             raise RuntimeError("macOS SMB service is not listening; run file-server:enable-smb with administrator access")
-        print("file-server SMB shares are ready", flush=True)
+        require_smb_storage_access(SOURCE_MOUNT)
+        print("file-server SMB configuration checked; no recent storage privacy refusals", flush=True)
     except (OSError, RuntimeError, ValueError) as error:
         errors.append(f"SMB: {error}")
     try:
@@ -488,6 +490,9 @@ def status(home: Path) -> bool:
         if not smb_service_listening():
             raise RuntimeError("macOS File Sharing is not listening on TCP port 445")
         print("ok  SMB service listening")
+        require_smb_storage_access(SOURCE_MOUNT)
+        print("ok  RAID ownership enabled; no recent SMB storage privacy refusals")
+        print("note  client authentication and file access still require an actual SMB test")
         return True
     except (RuntimeError, ValueError, json.JSONDecodeError, plistlib.InvalidFileException) as error:
         print(f"ERR file server: {error}")

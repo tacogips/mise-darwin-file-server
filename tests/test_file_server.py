@@ -287,13 +287,19 @@ class FileServerTests(unittest.TestCase):
                 file_server, "require_volumes",
             ), patch.object(file_server, "kopia_backup_environment", return_value={"KOPIA_PASSWORD": "test"}), patch.object(
                 file_server, "repository_status",
-            ), patch.object(file_server, "snapshot_due", side_effect=[False, True]), patch.object(
+            ), patch.object(file_server, "snapshot_due", side_effect=[False, True, True]), patch.object(
                 file_server, "_backup_locked",
-            ) as backup, patch.object(file_server, "require_online_mirror"):
+            ) as backup, patch.object(file_server, "require_online_mirror"), patch.object(
+                file_server, "require_smb_storage_access",
+            ) as privacy:
                 file_server.reconcile(home)
                 backup.assert_not_called()
                 file_server.reconcile(home)
                 backup.assert_called_once()
+                privacy.side_effect = RuntimeError("SMB privacy refusal")
+                with self.assertRaisesRegex(RuntimeError, "SMB: SMB privacy refusal"):
+                    file_server.reconcile(home)
+                self.assertEqual(backup.call_count, 2)
 
     def test_reconcile_reports_smb_failure_after_catching_up_backup(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

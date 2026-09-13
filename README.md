@@ -505,8 +505,9 @@ name and guest flag with `sharing -l -f json`, then confirm the RAID is mounted,
 `Owners` is enabled, and the account has access to the folder. Seeing a share
 in the server's list does not prove that an authenticated mount will succeed.
 Retry from a second Mac using `smb://<server-host>/FileServer` and **Registered
-User**. The `file-server:status` task checks the SMB share flags and listener,
-but not the account password, ownership setting, or per-user folder access.
+User**. The `file-server:status` task checks the SMB share flags, listener,
+RAID ownership, and recent SMB storage privacy refusals. It does not verify
+the account password or per-user folder access.
 
 A confirmed cause of external-share connection failures is macOS privacy
 protection (TCC) denying `smbd` access to removable volumes in a background
@@ -526,6 +527,30 @@ identity from the SMB service. After granting the permission, verify an actual
 authenticated client mount and create/edit/delete a disposable test file over
 SMB. Also verify the ordinary sharing account cannot open `TimeMachine`.
 Do not treat the server status task alone as proof of client access.
+
+To prevent recurrence, perform these checks when commissioning a server and
+after macOS updates, restoring the Mac, or replacing/reconnecting storage:
+
+1. Confirm the enrolled RAID is mounted with ownership enabled, and confirm
+   `/usr/sbin/smbd` is enabled in **Privacy & Security → Full Disk Access**.
+   Privacy grants belong to macOS on this host; a repository checkout does not
+   reproduce them. Grant access locally through System Settings. The tasks do
+   not edit the TCC database or attempt unattended administrator authentication.
+2. Run `mise -E macos-arm64 -E desktop -E file-server run file-server:status`.
+   Both this task and the existing five-minute `file-server:reconcile` monitor
+   check ownership and scan the last ten minutes of available TCC logs for
+   SMB storage refusals. A refusal or unavailable log reader is reported as an
+   error with guidance. Historical refusals remain visible for ten minutes
+   after a repair; absence of logged refusals does not prove the grant exists.
+   Monitoring reports the fault without widening permissions, restarting SMB
+   sessions automatically, or preventing an otherwise due backup attempt.
+3. Reconnect from a client with the dedicated sharing account and verify
+   create/read/edit/delete access in `FileServer`, denial of guest access,
+   and denial of that account's access to `TimeMachine`. Separately verify
+   Time Machine access with the intended backup account. Repeat this client
+   check after a cold reboot and local FileVault unlock, and after disk
+   reconnection. Keep account names, passwords, hostnames, and addresses out
+   of the repository and its diagnostic fixtures.
 
 ### Access shared files from an iPhone
 
