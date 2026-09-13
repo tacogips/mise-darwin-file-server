@@ -467,24 +467,28 @@ The backup job refuses to run if either disk is absent, the mount names are
 wrong, or Kopia points at a different repository. The status task checks that
 both AppleRAID members are online and requires an error-free snapshot of the
 intended share from the last 36 hours. The SMB share is named
-`FileServer`, points to `/Volumes/FileServer/Shared`, and allows guest access
-with SMB writes enabled. The separate `TimeMachine` share continues to require
-authentication. Anyone who can reach the server's SMB port over the LAN or
-tailnet can read, add, change, and delete guest-writable files in `FileServer`.
+`FileServer`, points to `/Volumes/FileServer/Shared`, and disables guest access.
 The `file-server:enable-smb` task enables and starts macOS's built-in SMB
 LaunchDaemon if port 445 is closed; it asks for `sudo` only when needed.
 Alternatively, enable **File Sharing** in System Settings → General → Sharing
 and **Share files and folders using SMB** in its Options. The
-status task checks that the SMB service is listening on port 445. The share
-task does not change filesystem permissions or create user accounts. On the
-server, enable **Allow guest users to connect to shared folders** in System
-Settings → Users & Groups → Guest User. In File Sharing, select `Shared` and
-set **Everyone** to **Read & Write** in the Users list. Check permissions on
-existing files and subfolders separately; they may still deny guest access.
-The `file-server:status` task checks SMB share flags but does not verify the
-system-wide Guest User setting or filesystem permissions. Before enabling the
-Guest User setting, inspect `sharing -l -f json` for other shares with
-`smb_guest_access` set to `1`; those shares may become reachable by guests too.
+status task checks that the SMB service is listening on port 445. Grant access
+only to the intended local or sharing-only users. The share
+task does not create user accounts or change their passwords.
+
+For password-protected access to ordinary files, create a dedicated
+**Sharing Only** user in System Settings → Users & Groups → Add User. Enter its
+password in the local macOS dialog and store it in a password manager; never
+put it in mise configuration or this repository. In System Settings → General
+→ Sharing → File Sharing, select the `Shared` row, add this user under **Users**,
+and give it **Read & Write**. Set **Everyone** to **No Access**. In the
+`Shared` row's **Advanced Options**, leave guest access off. In Users & Groups
+→ Guest User, leave **Allow guest users to connect to shared folders** off.
+Do not add this account to the separate `TimeMachine` share unless it is also
+intended for backups. [Apple's Sharing Only user instructions](https://support.apple.com/ja-jp/guide/mac-help/mchlp15577/26/mac/26)
+describe the account type. Verify a client can connect and write with this
+account before relying on the share. The `file-server:status` task checks the
+SMB share flags, but not the account password or per-user filesystem access.
 
 ### Access shared files from an iPhone
 
@@ -505,8 +509,9 @@ The `TimeMachine` share is reserved for Mac backups.
 3. Enter `smb://<server-host>/FileServer` and tap **Connect**. Use the Mac
    mini's local hostname on the LAN, or its Tailscale hostname or IP when
    using Tailscale. Do not enter the on-disk `Shared` path as the share name.
-4. Choose **Guest** and tap **Next**. Open the connected `FileServer` share from
-   the Files sidebar. Guest writes require the folder permissions above.
+4. Choose **Registered User**, enter the dedicated Sharing Only user's name
+   and password, and tap **Next**. Open the connected
+   `FileServer` share from the Files sidebar. Guest access is disabled.
 
 If the connection fails, check that the Mac mini has been unlocked after a
 FileVault reboot, File Sharing and SMB are enabled, and both devices can reach
@@ -539,8 +544,8 @@ has access to the external volume.
 
 The recovery check runs at login and every five minutes. Once the enrolled RAID
 and backup volumes are mounted, it creates a Kopia snapshot if the latest one
-is missing, failed, or at least 24 hours old. It separately checks the guest
-`FileServer` and private `TimeMachine` share records, the Time Machine destination
+is missing, failed, or at least 24 hours old. It separately checks the private
+`FileServer` and `TimeMachine` share records, the Time Machine destination
 option, SMB listener, and RAID members,
 so an SMB fault does not prevent a due backup. The daily 03:00 job
 remains as an independent scheduled backup. Both jobs share a lock, so they do

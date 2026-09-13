@@ -343,20 +343,6 @@ def require_private_share(entries: dict[str, object], name: str, path: Path) -> 
         raise RuntimeError(f"private SMB share {name} is missing or drifted")
 
 
-def require_guest_share(entries: dict[str, object], name: str, path: Path) -> None:
-    require_local_directory(path, SOURCE_MOUNT)
-    match = managed_share(entries, name, path)
-    settings = match[1] if match else {}
-    if (
-        settings.get("path") != str(path)
-        or settings.get("smb_name") != name
-        or settings.get("smb_shared") != 1
-        or settings.get("smb_guest_access") != 1
-        or settings.get("smb_read_only") != 0
-    ):
-        raise RuntimeError(f"guest SMB share {name} is missing or drifted")
-
-
 def require_time_machine_destination(entries: dict[str, object]) -> None:
     """Check the share option that `sharing -l` does not report."""
     match = managed_share(entries, TIME_MACHINE_NAME, time_machine_path())
@@ -388,7 +374,7 @@ def reconcile(home: Path) -> None:
         errors.append(f"backup: {error}")
     try:
         entries = shares()
-        require_guest_share(entries, SHARE_NAME, share_path())
+        require_private_share(entries, SHARE_NAME, share_path())
         require_private_share(entries, TIME_MACHINE_NAME, time_machine_path())
         require_time_machine_destination(entries)
         if not smb_service_listening():
@@ -467,31 +453,9 @@ def converge_private_share(source: Path, name: str) -> None:
     print(f"private SMB share: {name} -> {source}")
 
 
-def converge_guest_share(source: Path, name: str) -> None:
-    if source.is_symlink() or (source.exists() and not source.is_dir()):
-        raise RuntimeError(f"cannot use conflicting share path: {source}")
-    source.mkdir(exist_ok=True)
-    require_local_directory(source, SOURCE_MOUNT)
-    existing = managed_share(shares(), name, source)
-    if existing is None:
-        run(["sudo", "sharing", "-a", source, "-n", name, "-S", name, "-s", "001", "-g", "001", "-R", "0"])
-    else:
-        record_name, entry = existing
-        if entry.get("path") != str(source):
-            raise RuntimeError(f"share name {name} belongs to another directory")
-        if (
-            entry.get("smb_name") != name
-            or entry.get("smb_shared") != 1
-            or entry.get("smb_guest_access") != 1
-            or entry.get("smb_read_only") != 0
-        ):
-            run(["sudo", "sharing", "-e", record_name, "-S", name, "-s", "001", "-g", "001", "-R", "0"])
-    print(f"guest SMB share: {name} -> {source}")
-
-
 def share(home: Path) -> None:
     require_volumes(home)
-    converge_guest_share(share_path(), SHARE_NAME)
+    converge_private_share(share_path(), SHARE_NAME)
 
 
 def time_machine_share(home: Path) -> None:
@@ -511,9 +475,13 @@ def status(home: Path) -> bool:
         print("ok  Kopia repository on backup volume")
         latest_snapshot(home)
         print("ok  recent error-free Kopia snapshot")
+        require_local_directory(share_path(), SOURCE_MOUNT)
         entries = shares()
-        require_guest_share(entries, SHARE_NAME, share_path())
-        print("ok  guest SMB share")
+        match = managed_share(entries, SHARE_NAME, share_path())
+        share_settings = match[1] if match else {}
+        if share_settings.get("path") != str(share_path()) or share_settings.get("smb_name") != SHARE_NAME or share_settings.get("smb_shared") != 1 or share_settings.get("smb_guest_access") != 0:
+            raise RuntimeError("private SMB share is missing or drifted")
+        print("ok  private SMB share")
         require_private_share(entries, TIME_MACHINE_NAME, time_machine_path())
         require_time_machine_destination(entries)
         print("ok  Time Machine backup destination")
