@@ -164,6 +164,55 @@ class FileServerTests(unittest.TestCase):
                 file_server.converge_private_share(target, "TimeMachine")
                 command.assert_not_called()
 
+    def test_guest_share_requires_write_access(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            target = root / "Shared"
+            target.mkdir()
+            entry = {
+                "path": str(target), "smb_name": "FileServer",
+                "smb_shared": 1, "smb_guest_access": 1, "smb_read_only": 0,
+            }
+            with patch.object(file_server, "SOURCE_MOUNT", root):
+                file_server.require_guest_share({"Shared": entry}, "FileServer", target)
+                with self.assertRaisesRegex(RuntimeError, "guest SMB"):
+                    file_server.require_guest_share(
+                        {"Shared": {**entry, "smb_read_only": 1}}, "FileServer", target,
+                    )
+
+    def test_guest_share_converges_existing_private_record(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            target = root / "Shared"
+            target.mkdir()
+            entry = {
+                "path": str(target), "smb_name": "FileServer",
+                "smb_shared": 1, "smb_guest_access": 0, "smb_read_only": 0,
+            }
+            with patch.object(file_server, "SOURCE_MOUNT", root), patch.object(
+                file_server, "shares", return_value={"Shared": entry},
+            ), patch.object(file_server, "run") as command:
+                file_server.converge_guest_share(target, "FileServer")
+                command.assert_called_once_with([
+                    "sudo", "sharing", "-e", "Shared", "-S", "FileServer",
+                    "-s", "001", "-g", "001", "-R", "0",
+                ])
+
+    def test_guest_share_skips_matching_record(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            target = root / "Shared"
+            target.mkdir()
+            entry = {
+                "path": str(target), "smb_name": "FileServer",
+                "smb_shared": 1, "smb_guest_access": 1, "smb_read_only": 0,
+            }
+            with patch.object(file_server, "SOURCE_MOUNT", root), patch.object(
+                file_server, "shares", return_value={"Shared": entry},
+            ), patch.object(file_server, "run") as command:
+                file_server.converge_guest_share(target, "FileServer")
+                command.assert_not_called()
+
     def test_time_machine_destination_detection(self) -> None:
         entry = {"path": str(file_server.time_machine_path()), "smb_name": "TimeMachine"}
         records: dict[str, object] = {"TimeMachine": entry}
@@ -280,8 +329,10 @@ class FileServerTests(unittest.TestCase):
             with patch.object(file_server, "read_enrollment", return_value=file_server.Enrollment("source", "backup")), patch.object(
                 file_server, "volume_info", return_value=file_server.Volume(file_server.SOURCE_MOUNT, "source"),
             ), patch.object(file_server, "shares", return_value={}), patch.object(
-                file_server, "require_private_share",
-            ), patch.object(file_server, "require_time_machine_destination"), patch.object(
+                file_server, "require_guest_share",
+            ), patch.object(file_server, "require_private_share"), patch.object(
+                file_server, "require_time_machine_destination",
+            ), patch.object(
                 file_server, "smb_service_listening", return_value=True,
             ), patch.object(
                 file_server, "require_volumes",

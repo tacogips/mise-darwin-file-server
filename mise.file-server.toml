@@ -49,7 +49,7 @@ description = "Check SMB and enrolled disks; catch up a backup when one is due"
 run = "python -m scripts.mise_darwin file-server reconcile"
 
 [tasks."file-server:share"]
-description = "Converge the private SMB share on the enrolled RAID volume"
+description = "Converge the guest-accessible SMB share on the enrolled RAID volume"
 run = "python -m scripts.mise_darwin file-server share"
 
 [tasks."file-server:time-machine-share"]
