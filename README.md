@@ -485,10 +485,28 @@ and give it **Read & Write**. Set **Everyone** to **No Access**. In the
 `Shared` row's **Advanced Options**, leave guest access off. In Users & Groups
 → Guest User, leave **Allow guest users to connect to shared folders** off.
 Do not add this account to the separate `TimeMachine` share unless it is also
-intended for backups. [Apple's Sharing Only user instructions](https://support.apple.com/ja-jp/guide/mac-help/mchlp15577/26/mac/26)
-describe the account type. Verify a client can connect and write with this
-account before relying on the share. The `file-server:status` task checks the
-SMB share flags, but not the account password or per-user filesystem access.
+intended for backups. Restrict `TimeMachine` to its intended backup account:
+the share's **Everyone** permission and the folder's group/other permissions
+must not grant this sharing-only account access. [Apple's Sharing Only user
+instructions](https://support.apple.com/guide/mac-help/mchlp15577/mac)
+describe the account type.
+
+The external RAID must enforce file ownership for user-specific permissions.
+Check `diskutil info <mounted-RAID-volume>` for `Owners: Enabled`; if it says
+`Disabled`, run `sudo diskutil enableOwnership <mounted-RAID-volume>` once on
+the server. macOS retains this setting across reconnects and reboots on that
+Mac. Ensure the `Shared` folder grants the sharing-only account inherited
+read/write access so files later created by the server owner remain editable.
+Verify a client can connect, create, edit, and delete a test file before relying
+on the share.
+
+If a client reports that `FileServer` does not exist, first verify the live SMB
+name and guest flag with `sharing -l -f json`, then confirm the RAID is mounted,
+`Owners` is enabled, and the account has access to the folder. Seeing a share
+in the server's list does not prove that an authenticated mount will succeed.
+Retry from a second Mac using `smb://<server-host>/FileServer` and **Registered
+User**. The `file-server:status` task checks the SMB share flags and listener,
+but not the account password, ownership setting, or per-user folder access.
 
 ### Access shared files from an iPhone
 
