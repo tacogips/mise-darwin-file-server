@@ -17,32 +17,32 @@ alias cleanup="find . -type f -name '*.DS_Store' -ls -delete"
 
 # Codex 0.147.0 distinguishes Ctrl-I from Tab with keyboard enhancement enabled,
 # but completion handles only Tab. Re-test Ctrl-I after future Codex updates.
-function co --description 'Codex SOL with medium reasoning'
-    command codex --dangerously-bypass-approvals-and-sandbox --model gpt-5.6-sol -c 'model_reasoning_effort="medium"' $argv
+function co --description 'Codex GPT-6.1 SOL with medium reasoning'
+    command codex --dangerously-bypass-approvals-and-sandbox --model gpt-6.1-sol -c 'model_reasoning_effort="medium"' $argv
 end
 
-function cot --description 'Codex Terra with medium reasoning'
-    command codex --dangerously-bypass-approvals-and-sandbox --model gpt-5.6-terra -c 'model_reasoning_effort="medium"' $argv
+function cot --description 'Codex GPT-6.1 SOL with medium reasoning (legacy Terra alias)'
+    command codex --dangerously-bypass-approvals-and-sandbox --model gpt-6.1-sol -c 'model_reasoning_effort="medium"' $argv
 end
 
-function col --description 'Codex Luna with medium reasoning'
-    command codex --dangerously-bypass-approvals-and-sandbox --model gpt-5.6-luna -c 'model_reasoning_effort="medium"' $argv
+function col --description 'Codex GPT-6.1 SOL with medium reasoning (legacy Luna alias)'
+    command codex --dangerously-bypass-approvals-and-sandbox --model gpt-6.1-sol -c 'model_reasoning_effort="medium"' $argv
 end
 
 function cor --description 'Resume a Codex session'
-    command codex --dangerously-bypass-approvals-and-sandbox --model gpt-5.6-sol resume $argv
+    command codex --dangerously-bypass-approvals-and-sandbox --model gpt-6.1-sol resume $argv
 end
 
 function corl --description 'Resume the last Codex session'
-    command codex --dangerously-bypass-approvals-and-sandbox --model gpt-5.6-sol resume --last $argv
+    command codex --dangerously-bypass-approvals-and-sandbox --model gpt-6.1-sol resume --last $argv
 end
 
 function cr --description 'Cursor Agent with Composer'
     command cursor-agent --yolo --approve-mcps --model composer-2.5 $argv
 end
 
-function cro --description 'Cursor Agent with GPT-5.6 SOL'
-    command cursor-agent --yolo --approve-mcps --model gpt-5.6-sol $argv
+function cro --description 'Cursor Agent with GPT-6.1 SOL'
+    command cursor-agent --yolo --approve-mcps --model gpt-6.1-sol $argv
 end
 
 function crc --description 'Cursor Agent with Claude Opus'

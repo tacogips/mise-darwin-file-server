@@ -307,7 +307,7 @@ registry before installing packages from their local source paths. The Fable-led
 is installed for Claude Code only. Codex uses
 `codex-design-and-implement-review-loop`, with GPT-6 Astra handling design,
 design review, implementation-plan creation, and implementation-plan review;
-GPT-5.6 Terra handling implementation; and GPT-5.6 SOL handling test-integrity,
+GPT-6.1 SOL handling implementation and test-integrity,
 independent, and adversarial review. The compact 18-step graph integrates
 author self-checks into design, planning, and implementation, and combines
 implementation-plan completion verification with commit preparation while
