@@ -23,3 +23,15 @@ run = "mise run ghostty:reload"
 [tasks."ghostty:reload"]
 description = "Reload the managed Ghostty configuration in a running app"
 run = "python -m scripts.mise_darwin ghostty-reload"
+
+[tasks."ssh:enable"]
+description = "Enable persistent macOS SSH using SSH_PORT from Kinko; sudo when drifted"
+run = "kinko exec --force --env SSH_PORT -- python -m scripts.mise_darwin ssh enable"
+
+[tasks."ssh:status"]
+description = "Check managed SSH configuration and listener without applying changes"
+run = "kinko exec --force --env SSH_PORT -- python -m scripts.mise_darwin ssh status"
+
+[tasks."ssh:dry-run"]
+description = "Preview SSH listener convergence without sudo or writes"
+run = "kinko exec --force --env SSH_PORT -- python -m scripts.mise_darwin ssh enable --dry-run"

@@ -552,6 +552,66 @@ after macOS updates, restoring the Mac, or replacing/reconnecting storage:
    reconnection. Keep account names, passwords, hostnames, and addresses out
    of the repository and its diagnostic fixtures.
 
+### SSH access over Tailscale
+
+Store `SSH_PORT` in Kinko's repository path scope (default profile), then enable
+the reproducible SSH listener explicitly on a desktop Mac. The selected port
+is `2222`:
+
+```sh
+kinko set-key SSH_PORT --value 2222
+mise -E macos-arm64 -E desktop run ssh:dry-run
+mise -E macos-arm64 -E desktop run ssh:enable
+mise -E macos-arm64 -E desktop run ssh:status
+```
+
+All three mise tasks inject only `SSH_PORT` through `kinko exec --env SSH_PORT`.
+Kinko must be initialized and unlocked on the current Mac; initialize a new
+vault with `kinko init`, or restore the intended existing vault before setting
+the key. No vault contents or machine-specific scopes are committed. To change
+the port, update that key and rerun enable and status:
+
+```sh
+kinko set-key SSH_PORT --value 2222
+mise -E macos-arm64 -E desktop run ssh:enable
+mise -E macos-arm64 -E desktop run ssh:status
+ssh -p 2222 <local-user>@<tailscale-host>
+```
+
+The Python command consumes the injected environment variable and refuses a
+missing or invalid value rather than silently opening a fallback port. Its
+explicit `--port` option carries the validated value through `sudo` without
+requiring sudo to preserve vault-injected environment variables. The task
+validates ports from 1 through 65535, asks for `sudo` only when changes
+are needed, and atomically manages
+`/Library/LaunchDaemons/dev.mise.sshd.plist` as root with mode 644. It uses Apple's
+SSH host-key wrapper and a launchd socket on the selected port; setting `Port`
+in `sshd_config` alone cannot change macOS's socket-activated listener.
+The managed listener survives reboot. Applying it disables and unloads the
+built-in `com.openssh.sshd` listener, so changing the port does not leave port 22
+open. It reloads the managed service only when drifted and attempts to restore
+the previous configuration and listener if apply fails. Port changes may
+interrupt SSH sessions; apply them locally. SSH is opt-in rather than enabled
+by every desktop bootstrap.
+
+Existing `/etc/ssh` settings, host keys, account passwords, authorized keys, and
+macOS SSH access groups are preserved. Use the Mac's account password or an
+already-installed authorized key; the task does not create credentials or
+grant Full Disk Access to remote users. The System Settings Remote Login
+switch controls Apple's listener, not this managed service; use `ssh:status`
+to inspect it and avoid re-enabling the built-in listener alongside it.
+
+Connect Tailscale on both devices and use the server's Tailscale hostname or
+address. This is ordinary OpenSSH carried over the VPN, supported by the macOS
+Tailscale app; see [Tailscale's SSH-over-Tailscale guide](https://tailscale.com/docs/reference/ssh-over-tailscale).
+The listener also accepts LAN connections; the task does not add firewall rules
+or alter tailnet policies. The tailnet policy must allow TCP to `SSH_PORT`, and
+any host firewall must allow the listener. Status checks configuration and a
+local SSH banner, not remote tailnet policy or authenticated client access.
+After a FileVault-protected reboot, unlock the Mac locally before expecting
+Tailscale connectivity. Keep actual usernames, tailnet names, and addresses
+out of the repository.
+
 ### Access shared files from an iPhone
 
 macOS Sharing shows the folder's row name, while SMB clients use its configured

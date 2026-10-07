@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 
 from . import (
     bootstrap,
@@ -10,6 +11,7 @@ from . import (
     file_server_storage,
     ghostty,
     nix_uninstall,
+    ssh,
     temporary_packages,
     upgrade_taco,
     verify,
@@ -94,6 +96,10 @@ def parser() -> argparse.ArgumentParser:
     storage.add_argument("--dock1")
     storage.add_argument("--dock2")
     storage.add_argument("--backup")
+    ssh_command = subcommands.add_parser("ssh", help="manage the macOS SSH listener")
+    ssh_command.add_argument("operation", choices=("enable", "status"))
+    ssh_command.add_argument("--dry-run", action="store_true")
+    ssh_command.add_argument("--port", type=ssh.parse_port, default=os.environ.get("SSH_PORT", ""))
     return command_parser
 
 
@@ -102,6 +108,11 @@ def main() -> int:
     profile = _profile()
     if arguments.command == "bootstrap":
         bootstrap.apply(profile)
+        return 0
+    if arguments.command == "ssh":
+        if arguments.operation == "status":
+            return 0 if ssh.status(arguments.port) else 1
+        ssh.enable(arguments.port, dry_run=arguments.dry_run)
         return 0
     if arguments.command == "file-server":
         from pathlib import Path
