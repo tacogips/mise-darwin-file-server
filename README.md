@@ -384,6 +384,10 @@ a migration reference until this repository passes verification.
 
 ## Home file server on the Mac mini
 
+The managed Fish configuration displays `=== mise-file-server ===` when an
+interactive login shell starts and prefixes every prompt with `[file-server]`.
+After updating the dotfiles, open a new Fish login session to see the banner.
+
 Load `mise.file-server.toml` in addition to the Apple Silicon and desktop
 configuration on the Mac mini:
 

@@ -16,7 +16,13 @@ fish_add_path --prepend $HOME/.local/bin
 fish_add_path --prepend $DEVELOPER_DIR/Toolchains/XcodeDefault.xctoolchain/usr/bin
 fish_add_path --prepend /opt/homebrew/bin /usr/local/bin
 
-set fish_greeting
+function fish_greeting
+    if status is-login
+        set_color --bold yellow
+        echo '=== mise-file-server ==='
+        set_color normal
+    end
+end
 
 if type -q mise
     mise activate fish | source
@@ -93,6 +99,9 @@ set -g __fish_git_prompt_showcolorhints true
 
 function fish_prompt
     set -l last_status $status
+    set_color --bold yellow
+    echo -n '[file-server] '
+    set_color normal
     __taco_fish_bind_mode_indicator
     set_color $fish_color_cwd
     echo -n (prompt_pwd)
