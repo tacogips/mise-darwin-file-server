@@ -1,0 +1,37 @@
+[bootstrap.packages]
+"brew:ccusage" = "latest"
+"brew:cline" = "latest"
+"brew:colima" = "latest"
+"brew:container" = "latest"
+"brew:podman" = "latest"
+"brew:podman-compose" = "latest"
+"brew:docker" = "latest"
+"brew:docker-compose" = "latest"
+"brew:herdr" = "latest"
+"mas:1440147259" = "latest" # AdGuard for Safari
+"mas:937984704" = "latest"  # Amphetamine
+"mas:640199958" = "latest"  # Apple Developer
+"mas:1352778147" = "latest" # Bitwarden
+"mas:1033342465" = "latest" # Just Press Record
+"mas:302584613" = "latest"  # Amazon Kindle
+"mas:1475387142" = "latest" # Tailscale
+"mas:497799835" = "latest"  # Xcode
+
+[bootstrap.hooks.final]
+run = "mise run ghostty:reload"
+
+[tasks."ghostty:reload"]
+description = "Reload the managed Ghostty configuration in a running app"
+run = "python -m scripts.mise_darwin ghostty-reload"
+
+[tasks."ssh:enable"]
+description = "Enable persistent macOS SSH using SSH_PORT from Kinko; sudo when drifted"
+run = "kinko exec --force --env SSH_PORT -- python -m scripts.mise_darwin ssh enable"
+
+[tasks."ssh:status"]
+description = "Check managed SSH configuration and listener without applying changes"
+run = "kinko exec --force --env SSH_PORT -- python -m scripts.mise_darwin ssh status"
+
+[tasks."ssh:dry-run"]
+description = "Preview SSH listener convergence without sudo or writes"
+run = "kinko exec --force --env SSH_PORT -- python -m scripts.mise_darwin ssh enable --dry-run"

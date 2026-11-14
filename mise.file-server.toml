@@ -1,0 +1,77 @@
+[bootstrap.packages]
+"brew:kopia" = "latest"
+"brew:smartmontools" = "latest"
+
+[bootstrap.macos.launchd.agents.file-server-backup]
+program = "/opt/homebrew/bin/mise"
+args = ["-E", "macos-arm64", "-E", "file-server", "run", "file-server:backup"]
+working_directory = "~/gits/tacogips/mise-darwin-file-server"
+start_calendar_interval = { hour = 3, minute = 0 }
+environment = { PATH = "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" }
+stdout_path = "~/Library/Logs/mise-file-server-backup.log"
+stderr_path = "~/Library/Logs/mise-file-server-backup.err.log"
+
+[bootstrap.macos.launchd.agents.file-server-awake]
+program = "/usr/bin/caffeinate"
+args = ["-i", "-s"]
+run_at_load = true
+keep_alive = true
+throttle_interval = 60
+
+[bootstrap.macos.launchd.agents.file-server-reconcile]
+program = "/opt/homebrew/bin/mise"
+args = ["-E", "macos-arm64", "-E", "file-server", "run", "file-server:reconcile"]
+working_directory = "~/gits/tacogips/mise-darwin-file-server"
+run_at_load = true
+start_interval = 300
+environment = { PATH = "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin" }
+stdout_path = "~/Library/Logs/mise-file-server-reconcile.log"
+stderr_path = "~/Library/Logs/mise-file-server-reconcile.err.log"
+
+[tasks."file-server:status"]
+description = "Inspect file-server volumes, Kopia repository, and SMB share"
+run = "python -m scripts.mise_darwin file-server status"
+
+[tasks."file-server:enroll"]
+description = "Record the exact mounted source and backup volume UUIDs"
+run = "python -m scripts.mise_darwin file-server enroll"
+
+[tasks."file-server:init-repository"]
+description = "Create an encrypted Kopia repository on the enrolled backup disk"
+run = "python -m scripts.mise_darwin file-server init-repository"
+
+[tasks."file-server:backup"]
+description = "Snapshot the file-server share after validating both disks"
+run = "python -m scripts.mise_darwin file-server backup"
+
+[tasks."file-server:reconcile"]
+description = "Check SMB and enrolled disks; catch up a backup when one is due"
+run = "python -m scripts.mise_darwin file-server reconcile"
+
+[tasks."file-server:share"]
+description = "Converge the private SMB share on the enrolled RAID volume"
+run = "python -m scripts.mise_darwin file-server share"
+
+[tasks."file-server:time-machine-share"]
+description = "Create a separate private SMB share for Time Machine backups on the RAID"
+run = "python -m scripts.mise_darwin file-server time-machine-share"
+
+[tasks."file-server:enable-smb"]
+description = "Enable and start the built-in macOS SMB service when it is not listening"
+run = "python -m scripts.mise_darwin file-server enable-smb"
+
+[tasks."file-server:power"]
+description = "Keep the AC-powered Mac mini awake and restart it after power loss"
+run = "python -m scripts.mise_darwin file-server power"
+
+[tasks."file-server:disks"]
+description = "List current external whole disks and partitions without changing them"
+run = "python -m scripts.mise_darwin file-server-storage disks"
+
+[tasks."file-server:record-disks"]
+description = "Record verified RAID and backup physical disk roles in a local ignored inventory"
+run = "python -m scripts.mise_darwin file-server-storage record-roles"
+
+[tasks."file-server:storage-plan"]
+description = "Validate three exact external targets and print RAID/backup erase commands"
+run = "python -m scripts.mise_darwin file-server-storage plan"
